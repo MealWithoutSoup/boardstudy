@@ -1,0 +1,110 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.blogapp'
+version = '1.0.0'
+java.sourceCompatibility = JavaVersion.VERSION_17
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // === Spring Boot Core Dependencies ===
+    // Spring Boot Web: REST API 개발, 내장 톰캣 서버, JSON 직렬화
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // Spring Security: 인증/인가, JWT 토큰 검증, CORS 처리
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    
+    // Spring Data JPA: JPA 구현체(Hibernate), Repository 패턴, 트랜잭션 관리
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    
+    // Validation: 입력값 검증, Bean Validation API
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // === Database Dependencies ===
+    // PostgreSQL Driver: 데이터베이스 연결, JDBC 드라이버
+    runtimeOnly 'org.postgresql:postgresql'
+    
+    // H2 Database: 테스트용 인메모리 데이터베이스
+    testRuntimeOnly 'com.h2database:h2'
+    
+    // === MyBatis Dependencies ===
+    // MyBatis Spring Boot Starter: SQL 매핑 프레임워크, XML/Annotation 기반 쿼리
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    
+    // === JWT Dependencies ===
+    // JWT API: JWT 토큰 생성/검증을 위한 핵심 API
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    
+    // JWT Implementation: 실제 JWT 구현체
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    
+    // JWT Jackson: JWT의 JSON 처리를 위한 Jackson 바인딩
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+    
+    // === File Upload Dependencies ===
+    // Apache Commons FileUpload: 멀티파트 파일 업로드 처리
+    implementation 'commons-fileupload:commons-fileupload:1.5'
+    
+    // Apache Commons IO: 파일 I/O 유틸리티, 파일 복사/이동/삭제
+    implementation 'commons-io:commons-io:2.11.0'
+    
+    // === Utility Dependencies ===
+    // Lombok: 코드 간소화, @Getter/@Setter/@Builder 등
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // ModelMapper: 엔티티-DTO 간 객체 매핑
+    implementation 'org.modelmapper:modelmapper:3.2.0'
+    
+    // === Test Dependencies ===
+    // Spring Boot Test: 스프링 부트 통합 테스트, @SpringBootTest
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    
+    // Spring Security Test: 보안 관련 테스트, @WithMockUser
+    testImplementation 'org.springframework.security:spring-security-test'
+    
+    // TestContainers: Docker 기반 통합 테스트, 실제 데이터베이스 테스트
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation platform('org.testcontainers:testcontainers-bom:1.19.3')
+    
+    // MockMvc Test: 웹 레이어 테스트
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+}
+
+// === Test Configuration ===
+test {
+    useJUnitPlatform()
+    
+    // 테스트 시 시스템 속성 설정
+    systemProperty 'spring.profiles.active', 'test'
+    
+    // 테스트 로그 레벨 설정
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+}
+
+// === JAR 빌드 설정 ===
+jar {
+    enabled = false
+}
+
+// === Boot JAR 설정 ===
+bootJar {
+    archiveBaseName = 'blog-app'
+    archiveVersion = '1.0.0'
+}
