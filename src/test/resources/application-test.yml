@@ -1,0 +1,125 @@
+# 테스트 환경 설정
+# 
+# 단위 테스트 및 통합 테스트를 위한 Spring Boot 설정입니다.
+# 실제 운영 환경과 격리된 테스트 환경을 제공합니다.
+#
+# 주요 설정:
+# - 인메모리 H2 데이터베이스 사용
+# - 빠른 테스트 실행을 위한 최적화
+# - 테스트별 데이터 격리
+# - 로깅 설정 간소화
+
+spring:
+  # 테스트 프로파일 설정
+  profiles:
+    active: test
+  
+  # 데이터베이스 설정 (H2 인메모리)
+  datasource:
+    # 테스트마다 새로운 데이터베이스 생성
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  # JPA/Hibernate 설정
+  jpa:
+    # 테스트 시 SQL 로깅 활성화
+    show-sql: true
+    hibernate:
+      # 테스트마다 스키마 재생성
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        # SQL 포맷팅으로 가독성 향상
+        format_sql: true
+        # PostgreSQL 방언 사용 (호환성)
+        dialect: org.hibernate.dialect.H2Dialect
+        # 배치 처리 최적화
+        jdbc:
+          batch_size: 20
+        # 통계 정보 수집 (성능 모니터링)
+        generate_statistics: true
+  
+  # H2 콘솔 설정 (디버깅용)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # 보안 설정
+  security:
+    # 테스트용 더미 비밀키 (실제 환경에서는 사용 금지)
+    jwt:
+      secret: dGVzdC1zZWNyZXQta2V5LWZvci1qdW5pdC10ZXN0cy1vbmx5
+      expiration: 3600000  # 1시간 (테스트용 짧은 만료시간)
+      refresh-expiration: 7200000  # 2시간
+  
+  # 파일 업로드 설정
+  servlet:
+    multipart:
+      # 테스트용 작은 파일 크기 제한
+      max-file-size: 1MB
+      max-request-size: 10MB
+      # 임시 디렉토리 사용
+      location: ${java.io.tmpdir}
+
+# 테스트용 애플리케이션 설정
+app:
+  # 파일 업로드 설정
+  file:
+    upload:
+      # 테스트용 임시 디렉토리
+      dir: ${java.io.tmpdir}/test-uploads
+      max-size: 1048576  # 1MB
+      allowed-types: 
+        - image/jpeg
+        - image/png
+        - text/plain
+        - application/pdf
+  
+  # JWT 설정
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci1qdW5pdC10ZXN0cy1vbmx5
+    expiration: 3600000
+    refresh-expiration: 7200000
+
+# 로깅 설정 (테스트용 간소화)
+logging:
+  level:
+    # 루트 로그 레벨
+    root: INFO
+    # Spring 관련 로그
+    org.springframework: INFO
+    # Hibernate SQL 로그
+    org.hibernate.SQL: DEBUG
+    # 매개변수 바인딩 로그
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    # 애플리케이션 로그
+    com.blogapp: DEBUG
+    # 테스트 로그
+    org.springframework.test: DEBUG
+  
+  # 콘솔 출력 패턴 (간소화)
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# MyBatis 설정 (테스트용)
+mybatis:
+  # 매퍼 XML 파일 위치
+  mapper-locations: classpath:mybatis/mapper/*.xml
+  # 설정 파일 위치
+  config-location: classpath:mybatis/mybatis-config.xml
+  # 타입 별칭 패키지
+  type-aliases-package: com.blogapp.entity
+  configuration:
+    # 캐멀케이스 매핑
+    map-underscore-to-camel-case: true
+    # 로그 구현체
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 테스트 컨테이너 설정 (통합 테스트용)
+testcontainers:
+  # 재사용 설정 (테스트 속도 향상)
+  reuse:
+    enable: true
