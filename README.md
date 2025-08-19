@@ -27,6 +27,7 @@ JWT 인증과 파일 업로드 기능을 가진 Spring Boot 기반 블로그 애
 
 ## 🏗️ 시스템 아키텍처
 
+### 전체 시스템 구조
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │───▶│   Controller    │───▶│    Service      │
@@ -42,6 +43,193 @@ JWT 인증과 파일 업로드 기능을 가진 Spring Boot 기반 블로그 애
                        │      JPA        │    │   PostgreSQL    │
                        │    Hibernate    │───▶│   Database      │
                        └─────────────────┘    └─────────────────┘
+```
+
+## 📊 데이터베이스 ERD (Entity Relationship Diagram)
+
+### ERD 다이어그램
+```mermaid
+erDiagram
+    USER {
+        bigint id PK
+        varchar username UK
+        varchar email UK
+        varchar password
+        varchar first_name
+        varchar last_name
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    ROLE {
+        bigint id PK
+        varchar name UK
+        varchar description
+    }
+    
+    POST {
+        bigint id PK
+        varchar title
+        text content
+        varchar summary
+        boolean is_published
+        bigint author_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    FILE_ENTITY {
+        bigint id PK
+        varchar original_name
+        varchar stored_name
+        varchar file_path
+        bigint file_size
+        varchar content_type
+        bigint uploaded_by FK
+        bigint post_id FK
+        timestamp created_at
+    }
+    
+    USER_ROLES {
+        bigint user_id PK,FK
+        bigint role_id PK,FK
+    }
+
+    USER ||--o{ POST : "작성"
+    USER ||--o{ FILE_ENTITY : "업로드"
+    POST ||--o{ FILE_ENTITY : "첨부"
+    USER }|--|| USER_ROLES : "사용자-역할"
+    ROLE }|--|| USER_ROLES : "역할-사용자"
+```
+
+### 엔티티 관계 설명
+
+#### 1. **User (사용자) 엔티티**
+```sql
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+```
+- **역할**: 시스템 사용자 정보 관리
+- **관계**: 
+  - Role과 다대다 관계 (user_roles 중간 테이블)
+  - Post와 일대다 관계 (작성자)
+  - FileEntity와 일대다 관계 (업로더)
+
+#### 2. **Role (역할) 엔티티**
+```sql
+CREATE TABLE roles (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(20) NOT NULL UNIQUE,
+    description VARCHAR(100)
+);
+
+-- 기본 데이터
+INSERT INTO roles (name, description) VALUES 
+('ADMIN', '시스템 관리자'),
+('USER', '일반 사용자');
+```
+- **역할**: 사용자 권한 및 역할 관리
+- **관계**: User와 다대다 관계 (RBAC 구현)
+
+#### 3. **Post (게시글) 엔티티**
+```sql
+CREATE TABLE posts (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    summary VARCHAR(500),
+    is_published BOOLEAN NOT NULL DEFAULT false,
+    author_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+- **역할**: 블로그 게시글 정보 관리
+- **관계**: 
+  - User와 다대일 관계 (작성자)
+  - FileEntity와 일대다 관계 (첨부파일)
+
+#### 4. **FileEntity (파일) 엔티티**
+```sql
+CREATE TABLE files (
+    id BIGSERIAL PRIMARY KEY,
+    original_name VARCHAR(255) NOT NULL,
+    stored_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size BIGINT NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    uploaded_by BIGINT NOT NULL,
+    post_id BIGINT,
+    created_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
+);
+```
+- **역할**: 업로드된 파일 메타데이터 관리
+- **관계**: 
+  - User와 다대일 관계 (업로더)
+  - Post와 다대일 관계 (첨부파일, 선택적)
+
+#### 5. **UserRoles (사용자-역할) 중간 테이블**
+```sql
+CREATE TABLE user_roles (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+```
+- **역할**: 사용자와 역할 간의 다대다 관계 구현
+
+### 비즈니스 규칙
+
+#### 사용자 관리
+- 사용자명과 이메일은 시스템 내 유일해야 함
+- 비밀번호는 BCrypt로 암호화하여 저장
+- 사용자는 여러 역할을 동시에 가질 수 있음 (ADMIN + USER)
+- 계정 비활성화 시에도 데이터는 유지
+
+#### 게시글 관리
+- 모든 게시글은 작성자가 필수
+- 발행 상태(is_published)로 공개/비공개 관리
+- 작성자 삭제 시 게시글도 함께 삭제 (CASCADE)
+- 임시 저장 기능 지원 (is_published = false)
+
+#### 파일 관리
+- 원본 파일명과 서버 저장명 분리로 보안 강화
+- 게시글 첨부는 선택적 (독립 파일 업로드도 지원)
+- 업로더 삭제 시 파일 정보도 함께 삭제
+- 게시글 삭제 시 첨부파일은 독립 파일로 전환
+
+#### 권한 관리
+- RBAC(Role-Based Access Control) 구현
+- 기본 역할: ADMIN(관리자), USER(일반사용자)
+- 관리자는 모든 리소스에 접근 가능
+- 일반 사용자는 본인 리소스만 수정 가능
+
+### 인덱스 설계
+```sql
+-- 성능 최적화를 위한 인덱스
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_posts_author_id ON posts(author_id);
+CREATE INDEX idx_posts_published ON posts(is_published);
+CREATE INDEX idx_posts_created_at ON posts(created_at DESC);
+CREATE INDEX idx_files_uploaded_by ON files(uploaded_by);
+CREATE INDEX idx_files_post_id ON files(post_id);
+CREATE INDEX idx_files_content_type ON files(content_type);
 ```
 
 ## 🎯 개발 순서 및 학습 가이드
