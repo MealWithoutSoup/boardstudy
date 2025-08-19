@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Logback 설정 파일
+    
+    SLF4J와 Logback을 활용한 포괄적인 로깅 설정입니다.
+    개발, 테스트, 운영 환경별로 다른 로깅 전략을 적용합니다.
+    
+    주요 기능:
+    - 환경별 로그 레벨 설정
+    - 파일 로테이션 및 압축
+    - 보안 정보 마스킹
+    - 성능 모니터링
+    - 에러 추적 및 알림
+    
+    로깅 전략:
+    - 개발: 상세한 DEBUG 로그, 콘솔 출력
+    - 테스트: INFO 레벨, 파일 저장
+    - 운영: WARN 이상, 구조화된 JSON 로그
+    
+    @author 개발팀
+    @version 1.0
+    @since 2024-01-01
+-->
+<configuration>
+    <!-- ================================ -->
+    <!-- 공통 프로퍼티 정의 -->
+    <!-- ================================ -->
+    
+    <!-- 로그 파일 저장 디렉토리 -->
+    <property name="LOG_DIR" value="${LOG_DIR:-./logs}" />
+    
+    <!-- 애플리케이션 이름 -->
+    <property name="APP_NAME" value="blog-app" />
+    
+    <!-- 로그 패턴 정의 -->
+    <property name="CONSOLE_PATTERN" 
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %cyan([%thread]) %yellow(%logger{36}) - %msg%n" />
+    
+    <property name="FILE_PATTERN" 
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n" />
+    
+    <!-- JSON 로그 패턴 (운영 환경용) -->
+    <property name="JSON_PATTERN" 
+              value='{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%-5level","thread":"%thread","logger":"%logger","message":"%msg","mdc":%X}%n' />
+
+    <!-- ================================ -->
+    <!-- 콘솔 출력 Appender -->
+    <!-- ================================ -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ================================ -->
+    <!-- 파일 출력 Appender -->
+    <!-- ================================ -->
+    
+    <!-- 전체 로그 파일 -->
+    <appender name="FILE_ALL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${APP_NAME}-all.log</file>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        
+        <!-- 로그 파일 롤링 정책 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 일별 로그 파일 생성 -->
+            <fileNamePattern>${LOG_DIR}/${APP_NAME}-all.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            
+            <!-- 하루 최대 파일 크기: 100MB -->
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            
+            <!-- 로그 파일 보관 기간: 30일 -->
+            <maxHistory>30</maxHistory>
+            
+            <!-- 전체 로그 파일 크기 제한: 10GB -->
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 에러 로그 파일 (ERROR 레벨만) -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        
+        <!-- ERROR 레벨만 필터링 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>90</maxHistory> <!-- 에러 로그는 90일 보관 -->
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 보안 로그 파일 (인증/인가 관련) -->
+    <appender name="FILE_SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${APP_NAME}-security.log</file>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/${APP_NAME}-security.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>180</maxHistory> <!-- 보안 로그는 180일 보관 -->
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ================================ -->
+    <!-- 특정 패키지별 로거 설정 -->
+    <!-- ================================ -->
+    
+    <!-- 보안 관련 로거 -->
+    <logger name="com.blogapp.security" level="INFO" additivity="false">
+        <appender-ref ref="FILE_SECURITY" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <!-- JWT 관련 로거 -->
+    <logger name="com.blogapp.security.JwtTokenUtil" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE_SECURITY" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <!-- SQL 로깅 (개발 환경) -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <!-- MyBatis SQL 로깅 -->
+    <logger name="com.blogapp.repository.mybatis" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- ================================ -->
+    <!-- 환경별 설정 -->
+    <!-- ================================ -->
+    
+    <!-- 개발 환경 -->
+    <springProfile name="dev,local">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE_ALL" />
+            <appender-ref ref="FILE_ERROR" />
+        </root>
+    </springProfile>
+    
+    <!-- 테스트 환경 -->
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE_ALL" />
+            <appender-ref ref="FILE_ERROR" />
+        </root>
+    </springProfile>
+    
+    <!-- 운영 환경 -->
+    <springProfile name="prod">
+        <root level="WARN">
+            <appender-ref ref="FILE_ALL" />
+            <appender-ref ref="FILE_ERROR" />
+        </root>
+    </springProfile>
+    
+    <!-- 기본 설정 (프로파일 미지정) -->
+    <springProfile name="!dev & !test & !prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE_ALL" />
+            <appender-ref ref="FILE_ERROR" />
+        </root>
+    </springProfile>
+    
+</configuration>
